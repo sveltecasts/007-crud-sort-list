@@ -1,4 +1,5 @@
 <script>
+  import SortableList from "svelte-sortable-list";
   import { db } from "./firebase.js";
   export let name;
   let arrList = [];
@@ -23,6 +24,24 @@
       .doc(itemId)
       .update({ name: newItemValue });
   }
+  function updateElementPositions(ev) {
+    var batch = db.batch();
+    let newArrList = ev.detail;
+    arrList.forEach((el, index) => {
+      if (arrList[index].data().pos === newArrList[index].data().pos) {
+        console.log(
+          "Position not changed for Item",
+          arrList[index].data().name
+        );
+      } else {
+        console.log("Position  changed for Item", arrList[index].data().name);
+        batch.update(db.collection("list").doc(arrList[index].id), {
+          pos: newArrList[index].data().pos
+        });
+      }
+    });
+    batch.commit();
+  }
 </script>
 
 <style>
@@ -35,31 +54,30 @@
 Add Item:
 <input type="text" bind:value={newItemText} />
 <button on:click={addItem}>Add</button>
-<ul>
-  {#each arrList as listItem}
-    <li>
-      <button on:click={() => deleteItem(listItem.id)}>X</button>
-      {#if listItem.editMode == true}
-        <input
-          type="text"
-          value={listItem.data().name}
-          bind:this={listItem.inputUpdateEl} />
-        <button
-          on:click={() => {
-            updateItem(listItem.id, listItem.inputUpdateEl.value);
-          }}>
-          Update!
-        </button>
-      {:else}
-        <span
-          on:click={() => {
-            listItem.editMode = true;
-            arrList = arrList;
-          }}>
-          {listItem.data().name}
-        </span>
-      {/if}
-
-    </li>
-  {/each}
-</ul>
+<SortableList
+  list={arrList}
+  key="id"
+  on:sort={updateElementPositions}
+  let:index>
+  <button on:click={() => deleteItem(arrList[index].id)}>X</button>
+  {#if arrList[index].editMode == true}
+    <input
+      type="text"
+      value={arrList[index].data().name}
+      bind:this={arrList[index].inputUpdateEl} />
+    <button
+      on:click={() => {
+        updateItem(arrList[index].id, arrList[index].inputUpdateEl.value);
+      }}>
+      Update!
+    </button>
+  {:else}
+    <span
+      on:click={() => {
+        arrList[index].editMode = true;
+        arrList = arrList;
+      }}>
+      {arrList[index].data().name}
+    </span>
+  {/if}
+</SortableList>
